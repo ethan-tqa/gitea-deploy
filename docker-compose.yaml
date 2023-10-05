@@ -1,0 +1,182 @@
+---
+version: "3.7"
+
+services:
+  minio1:
+    image: quay.io/minio/minio
+    stdin_open: true
+    tty: true
+    command: server --console-address ":9001" /data1
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data1:/data1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 5s
+
+  postgres_gitea:
+    image: postgres:alpine
+    stdin_open: true
+    tty: true
+    networks:
+      gitea-net:
+    volumes:
+      - ./gitea/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: gitea
+      POSTGRES_USER: gitea
+      POSTGRES_PASSWORD: gitea
+    logging:
+      driver: ${LOG_DRIVER:-local}
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "gitea", "-U", "gitea" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  traefik:
+    image: traefik:v2.10.4
+    stdin_open: true
+    tty: true
+    networks:
+      gitea-net:
+        aliases:
+          - ${GITEA_DOMAIN:-gitea.owncloud.test}
+    command:
+      - "--log.level=${TRAEFIK_LOG_LEVEL:-ERROR}"
+      # letsencrypt configuration
+      - "--certificatesResolvers.http.acme.email=${TRAEFIK_ACME_MAIL:-demo@example.com}"
+      - "--certificatesResolvers.http.acme.storage=/certs/acme.json"
+      - "--certificatesResolvers.http.acme.httpChallenge.entryPoint=http"
+      # enable dashboard
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      # enable ping
+      - "--ping=true"
+      - "--ping.entrypoint=ping"
+      # define entrypoints
+      - "--entryPoints.ping.address=:8082"
+      - "--entryPoints.http.address=:80"
+      - "--entryPoints.http.http.redirections.entryPoint.to=https"
+      - "--entryPoints.http.http.redirections.entryPoint.scheme=https"
+      - "--entryPoints.https.address=:443"
+      # docker provider (get configuration from container labels)
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.exposedByDefault=false"
+      # access log
+      - "--accessLog=true"
+      - "--accessLog.format=json"
+      - "--accessLog.fields.headers.names.X-Request-Id=keep"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - ".certs:/certs"
+    labels:
+      - "traefik.enable=${TRAEFIK_DASHBOARD:-false}"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_BASIC_AUTH_USERS:-admin:$$apr1$$4vqie50r$$YQAmQdtmz5n9rEALhxJ4l.}" # defaults to admin:admin
+      - "traefik.http.routers.traefik.entrypoints=https"
+      - "traefik.http.routers.traefik.rule=Host(`${TRAEFIK_DOMAIN:-traefik.owncloud.test}`)"
+      - "traefik.http.routers.traefik.middlewares=traefik-auth"
+      - "traefik.http.routers.traefik.tls.certresolver=http"
+      - "traefik.http.routers.traefik.service=api@internal"
+    logging:
+      driver: "local"
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "http://localhost:8082/ping","--spider"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  gitea:
+    image: gitea/gitea:latest-rootless
+    container_name: giteacontainer
+    networks:
+      gitea-net:
+    environment:
+      # Anything in the app.ini can be overridden with environment variables here.
+      # The format is: GITEA__<section name>__<key name>
+      # The trick part is the keys not in any section like APP_NAME, must follow the format above with empty section name.
+      - GITEA____APP_NAME="Auroria Private Gitea"
+      - GITEA__repository_DEFAULT_PRIVATE=private
+      - GITEA__server__RUN_MODE=dev
+      - GITEA__server__DOMAIN=${GITEA_DOMAIN:-gitea.owncloud.test}
+      - GITEA__server__HTTP_PORT=3000
+      - GITEA__server__ROOT_URL=https://${GITEA_DOMAIN:-gitea.owncloud.test}
+      - GITEA__server__DISABLE_SSH=true
+      - GITEA__server__LFS_START_SERVER=true
+      - GITEA__server__LFS_JWT_SECRET=${GITEA_JWT_SECRET:-hy3gVe5niZxy9SF6z7kn1gVvUMbOwy-bpXjOb7BMb0Q}
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=postgres_gitea:5432
+      - GITEA__database__NAME=gitea
+      - GITEA__database__USER=gitea
+      - GITEA__database__PASSWD=gitea
+      - GITEA__security__INSTALL_LOCK=true
+      - GITEA__security__MIN_PASSWORD_LENGTH=12
+      - GITEA__security__PASSWORD_COMPLEXITY=lower,upper,digit,spec
+      - GITEA__security__SECRET_KEY=${GITEA_SECRET_KEY:-opfWytJAgRwr71vBXFAIDCA0Cu4DqEnGqa60Fw9l4npgEP6MGFsIJMyddNmLnQj0}
+      - GITEA__security__INTERNAL_TOKEN=${GITEA_INTERNAL_TOKEN:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYmYiOjE2OTY1MTE0Mzh9.bp-ZZhFrzM6FFh0jccLI9xI0XG7_R0pug2oHAsjNheQ}
+      - GITEA__service__DISABLE_REGISTRATION=true
+      - GITEA__service.explore__REQUIRE_SIGNIN_VIEW=true
+      - GITEA__service.explore__DISABLE_USERS_PAGE=true
+      - GITEA__openid__ENABLE_OPENID_SIGNIN=false
+      - GITEA__openid__ENABLE_OPENID_SIGNUP=false
+    volumes:
+      - ./gitea/data:/var/lib/gitea
+      - ./gitea/config:/etc/gitea
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gitea.rule=Host(`${GITEA_DOMAIN:-gitea.owncloud.test}`)"
+      - "traefik.http.routers.gitea.service=gitea"
+      - "traefik.http.routers.gitea.entrypoints=https"
+      - "traefik.http.routers.gitea.tls=true"
+      - "traefik.http.routers.gitea.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gitea.loadbalancer.passhostheader=true"
+      - "traefik.http.services.gitea.loadbalancer.server.port=3000"
+    depends_on:
+      postgres_gitea:
+        condition: service_healthy
+      traefik:
+        condition: service_healthy
+    restart: always
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:3000/api/healthz"]
+    #   interval: 60s
+    #   timeout: 50s
+    #   retries: 5
+    #   start_period: 65s
+
+  # create gitea admin after the service is up
+  # task-create-admin:
+  #   image: alpine
+  #   deploy:
+  #     restart_policy:
+  #       condition: on-failure
+  #     replicas: 1
+  #   # docker compose stand-alone restart policy for tasks
+  #   restart: on-failure
+  #   entrypoint: sh -c "gitea admin user create --name admin2 --password theadmin --email admin2@lol.kek --admin"
+  #   depends_on:
+  #     gitea:
+  #       condition: service_healthy
+
+volumes:
+  certs:
+
+networks:
+  gitea-net:
