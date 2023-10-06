@@ -166,9 +166,9 @@ services:
         sleep $BACKUP_INTERVAL; done'
     volumes:
       - ./gitea/data:${GITEA_DATA_PATH}
-      - ./backups/gitea-postgres:/var/lib/postgresql/data
-      - ./backups/gitea-data-backups:${GITEA_DATA_BACKUPS_PATH}
-      - ./backups/gitea-database-backups:${GITEA_POSTGRES_BACKUPS_PATH}
+      - ./backups/temp-postgres:/var/lib/postgresql/data
+      - ./backups/gitea-data:${GITEA_DATA_BACKUPS_PATH}
+      - ./backups/gitea-database:${GITEA_POSTGRES_BACKUPS_PATH}
     environment:
       PGPASSWORD: ${GITEA_DB_PASSWORD}
     networks:
