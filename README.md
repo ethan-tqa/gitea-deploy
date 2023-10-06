@@ -41,6 +41,19 @@ docker exec -it giteacontainer sh -c "curl -f http://localhost:3000/api/healthz"
 
 For command string in `docker-compose.yml`, the substitution method is unintuitive, as it does not read from the `environment:` section and instead read from environment veriables directly, which requires adding those variables to the `.env` file.
 
+## Backup & Restoration
+Backups are saved to files under folder `backups`. ENSURE THESE FILES ARE COPIED TO A SEPARATE STORAGE REGULARLY!
+NOTE: if source files are deleted from LFS, it is not possible to restore them, unless there is a backup of the LFS storage, in this case is R2. Or local files as checked out on clients can be pushed to repair.
+
+To restore from the back up, follow these steps:
+- Clone the deploy folder to a new server (or new folder).
+- Setup the `.env` as needed.
+- Copy the `backups` folder from the old server to the new server.
+- Run `start.sh`, wait for containers to spin up.
+- Run `gitea-restore-database.sh`, enter the correct backup name. The SQL commands should appear on screen.
+- Run `gitea-restore-application-data.sh`, enter the correct backup name.
+- Wait for the containers to spin up and verify the restoration.
+
 ## TODO
 
 Check
