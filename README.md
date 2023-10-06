@@ -34,6 +34,8 @@ To perform health check:
 docker exec -it giteacontainer sh -c "curl -f http://localhost:3000/api/healthz"
 ```
 
+For command string in `docker-compose.yml`, the substitution method is unintuitive, as it does not read from the `environment:` section and instead read from environment veriables directly, which requires adding those variables to the `.env` file.
+
 ## TODO
 
 Check

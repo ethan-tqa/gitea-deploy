@@ -4,6 +4,7 @@ version: "3.7"
 services:
   postgres_gitea:
     image: postgres:alpine
+    container_name: ${GITEA_CONTNAME_DB}
     stdin_open: true
     tty: true
     networks:
@@ -11,9 +12,9 @@ services:
     volumes:
       - ./gitea/postgres:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: gitea
-      POSTGRES_USER: gitea
-      POSTGRES_PASSWORD: gitea
+      POSTGRES_DB: ${GITEA_DB_NAME}
+      POSTGRES_USER: ${GITEA_DB_USER}
+      POSTGRES_PASSWORD: ${GITEA_DB_PASSWORD}
     logging:
       driver: ${LOG_DRIVER:-local}
     healthcheck:
@@ -83,7 +84,7 @@ services:
 
   gitea:
     image: gitea/gitea:latest-rootless
-    container_name: giteacontainer
+    container_name: ${GITEA_CONTNAME_GITEA}
     networks:
       gitea-net:
     environment:
@@ -124,7 +125,7 @@ services:
       - GITEA__lfs__MINIO_BUCKET=${GITEA_MINIO_BUCKET:-lol1}
       - GITEA__lfs__MINIO_LOCATION=${GITEA_MINIO_LOCATION:-th-central}
     volumes:
-      - ./gitea/data:/var/lib/gitea
+      - ./gitea/data:${GITEA_DATA_PATH:-/var/lib/gitea}
       - ./gitea/config:/etc/gitea
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
@@ -149,6 +150,33 @@ services:
     #   timeout: 50s
     #   retries: 5
     #   start_period: 65s
+
+  # This is the local backup solution, ideally with 24 hours interval or below.
+  # TODO: Improve this with a tool to upload the files to S3 storage.
+  backups:
+    image: postgres:alpine
+    container_name: gitea-backups
+    command: >-
+      sh -c 'sleep $BACKUP_INIT_SLEEP &&
+      while true; do
+        pg_dump -h postgres -p 5432 -d $GITEA_DB_NAME -U $GITEA_DB_USER | gzip > $GITEA_POSTGRES_BACKUPS_PATH/$GITEA_POSTGRES_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M").gz &&
+        tar -zcpf $GITEA_DATA_BACKUPS_PATH/$GITEA_DATA_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M").tar.gz $GITEA_DATA_PATH &&
+        find $GITEA_POSTGRES_BACKUPS_PATH -type f -mtime +$BACKUP_PRUNE_DAYS | xargs rm -f &&
+        find $GITEA_DATA_BACKUPS_PATH -type f -mtime +$BACKUP_PRUNE_DAYS | xargs rm -f;
+        sleep $BACKUP_INTERVAL; done'
+    volumes:
+      - ./gitea/data:${GITEA_DATA_PATH}
+      - ./backups/gitea-postgres:/var/lib/postgresql/data
+      - ./backups/gitea-data-backups:${GITEA_DATA_BACKUPS_PATH}
+      - ./backups/gitea-database-backups:${GITEA_POSTGRES_BACKUPS_PATH}
+    environment:
+      PGPASSWORD: ${GITEA_DB_PASSWORD}
+    networks:
+      gitea-net:
+    restart: unless-stopped
+    depends_on:
+      postgres_gitea:
+        condition: service_healthy
 
   # create gitea admin after the service is up
   # task-create-admin:
