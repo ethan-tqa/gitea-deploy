@@ -14,7 +14,12 @@ The steps:
 - (First time installation) Restart server to ensure docker is running.
 - Run `start.sh` to start the docker images.
 - Wait at least 2 minutes for all the services to boot up.
-- Execute the following command if it is the first run, to create an admin user: `docker exec -it giteacontainer sh -c "gitea admin user create --name admin1 --password theadmin --email admin1@lol.kek --admin"`
+- In the first run, execute a command to create an admin user.
+
+Command to create admin user:
+```shell
+docker exec -it gitea-gitea sh -c "gitea admin user create --username admin1 --password theadmin --email admin1@lol.kek --admin"
+```
 
 ## Docker setup
 The rootless version of the Gitea image is required in order to run the shell command to create admin user, as registration has been disabled.
