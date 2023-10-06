@@ -34,6 +34,14 @@ To perform health check:
 docker exec -it giteacontainer sh -c "curl -f http://localhost:3000/api/healthz"
 ```
 
+## TODO
+
+Check
+```
+Locking support detected on remote "origin". Consider enabling it with:
+  $ git config lfs.https://gitea.owncloud.test/admin1/testrepo.git/info/lfs.locksverify true
+```
+
 ## Documentation
 - [Sample compose](https://github.com/heyValdemar/gitea-traefik-letsencrypt-docker-compose)
 - [Gitea docker doc](https://docs.gitea.com/installation/install-with-docker-rootless)

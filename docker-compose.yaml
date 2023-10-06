@@ -2,26 +2,6 @@
 version: "3.7"
 
 services:
-  minio1:
-    image: quay.io/minio/minio
-    stdin_open: true
-    tty: true
-    command: server --console-address ":9001" /data1
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: password
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - ./data1:/data1
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-      start_period: 5s
-
   postgres_gitea:
     image: postgres:alpine
     stdin_open: true
@@ -134,6 +114,15 @@ services:
       - GITEA__service.explore__DISABLE_USERS_PAGE=true
       - GITEA__openid__ENABLE_OPENID_SIGNIN=false
       - GITEA__openid__ENABLE_OPENID_SIGNUP=false
+      - GITEA__lfs__STORAGE_TYPE=minio
+      - GITEA__lfs__SERVE_DIRECT=true
+      - GITEA__lfs__MINIO_USE_SSL=true
+      - GITEA__lfs__MINIO_CHECKSUM_ALGORITHM=md5
+      - GITEA__lfs__MINIO_ENDPOINT=${GITEA_MINIO_ENDPOINT:-localhost:9000}
+      - GITEA__lfs__MINIO_ACCESS_KEY_ID=${GITEA_MINIO_ACCESS_KEY_ID:-62bFLvcv2EsGjGhYq7rQ}
+      - GITEA__lfs__MINIO_SECRET_ACCESS_KEY=${GITEA_MINIO_SECRET_ACCESS_KEY:-3YOhDJxwXjmtn3cWHQvisGMWS2QFMYahPxYCUlPJ}
+      - GITEA__lfs__MINIO_BUCKET=${GITEA_MINIO_BUCKET:-lol1}
+      - GITEA__lfs__MINIO_LOCATION=${GITEA_MINIO_LOCATION:-th-central}
     volumes:
       - ./gitea/data:/var/lib/gitea
       - ./gitea/config:/etc/gitea
