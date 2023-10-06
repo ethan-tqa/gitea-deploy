@@ -38,9 +38,9 @@ echo "--> Stopping service..."
 docker stop "$GITEA_CONTAINER"
 
 echo "--> Restoring database..."
-docker exec "$GITEA_BACKUPS_CONTAINER" sh -c "dropdb -h postgres -p 5432 $GITEA_DB_NAME -U $GITEA_DB_USER \
-&& createdb -h postgres -p 5432 $GITEA_DB_NAME -U $GITEA_DB_USER \
-&& gunzip -c ${BACKUP_PATH}${SELECTED_DATABASE_BACKUP} | psql -h postgres -p 5432 $GITEA_DB_NAME -U $GITEA_DB_USER"
+docker exec "$GITEA_BACKUPS_CONTAINER" sh -c "dropdb -h postgres_gitea -p 5432 $GITEA_DB_NAME -U $GITEA_DB_USER \
+&& createdb -h postgres_gitea -p 5432 $GITEA_DB_NAME -U $GITEA_DB_USER \
+&& gunzip -c ${BACKUP_PATH}${SELECTED_DATABASE_BACKUP} | psql -h postgres_gitea -p 5432 $GITEA_DB_NAME -U $GITEA_DB_USER"
 echo "--> Database recovery completed..."
 
 echo "--> Starting service..."
