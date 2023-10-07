@@ -54,6 +54,10 @@ To restore from the back up, follow these steps:
 - Run `gitea-restore-application-data.sh`, enter the correct backup name.
 - Wait for the containers to spin up and verify the restoration.
 
+See also:
+- [Gitea backup doc](https://docs.gitea.com/administration/backup-and-restore)
+- [Restoring issues](https://peterbabic.dev/blog/issues-restoring-gitea-from-dump/)
+
 ## TODO
 
 Check
