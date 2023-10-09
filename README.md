@@ -42,7 +42,10 @@ docker exec -it giteacontainer sh -c "curl -f http://localhost:3000/api/healthz"
 For command string in `docker-compose.yml`, the substitution method is unintuitive, as it does not read from the `environment:` section and instead read from environment veriables directly, which requires adding those variables to the `.env` file.
 
 ## Backup & Restoration
+IMPORTANT: The `app.ini` config file is NOT backed up automatically. DO IT YOURSELF.
+
 Backups are saved to files under folder `backups`. ENSURE THESE FILES ARE COPIED TO A SEPARATE STORAGE REGULARLY!
+
 NOTE: if source files are deleted from LFS, it is not possible to restore them, unless there is a backup of the LFS storage, in this case is R2. Or local files as checked out on clients can be pushed to repair.
 
 To restore from the back up, follow these steps:
@@ -64,6 +67,14 @@ Check
 ```
 Locking support detected on remote "origin". Consider enabling it with:
   $ git config lfs.https://gitea.owncloud.test/admin1/testrepo.git/info/lfs.locksverify true
+```
+
+## Tips
+
+To find which `docker-compose.yml` files was used to start the container, use this command:
+
+```shell
+docker inspect < name_or_pid > | grep file
 ```
 
 ## Documentation
